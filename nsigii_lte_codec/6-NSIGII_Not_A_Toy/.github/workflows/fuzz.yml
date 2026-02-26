@@ -1,0 +1,25 @@
+name: Fuzz-NPL
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust nightly
+        run: rustup toolchain install nightly --component llvm-tools-preview
+      - name: Run 30-min smoke fuzz
+        run: |
+          cd fuzz
+          chmod +x run-fuzzers.sh
+          TIME_PER_FUZZ=1800 ./run-fuzzers.sh
+      - name: Upload crash artefacts (if any)
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: crash-artefacts
+          path: fuzz/artifacts/

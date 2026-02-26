@@ -1,0 +1,35 @@
+<svg width="600" height="600" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .label { font: bold 12px sans-serif; fill: #ffffff; }
+    .node { stroke: #333; stroke-width: 1; fill-opacity: 0.85; }
+  </style>
+
+  <!-- Circle of Life Nodes -->
+  <circle cx="300" cy="100" r="40" class="node" fill="#FFA500" /> <!-- Butterfly -->
+  <text x="300" y="100" text-anchor="middle" dy="5" class="label">Butterfly<br/>Flight / Air Ops</text>
+
+  <circle cx="500" cy="300" r="40" class="node" fill="#FFD700" /> <!-- Aerospace AI -->
+  <text x="500" y="300" text-anchor="middle" dy="5" class="label">Aerospace AI<br/>Support</text>
+
+  <circle cx="300" cy="500" r="40" class="node" fill="#00FF00" /> <!-- Turtle -->
+  <text x="300" y="500" text-anchor="middle" dy="5" class="label">Turtle<br/>Ship / Ground</text>
+
+  <circle cx="100" cy="300" r="40" class="node" fill="#00FFFF" /> <!-- AI Drones -->
+  <text x="100" y="300" text-anchor="middle" dy="5" class="label">AI Drones<br/>Field</text>
+
+  <!-- Connecting Arrows -->
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="5" refY="5"
+            orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,10 L10,5 z" fill="#ffffff" />
+    </marker>
+  </defs>
+
+  <line x1="340" y1="100" x2="460" y2="260" stroke="#ffffff" stroke-width="2" marker-end="url(#arrow)" />
+  <line x1="540" y1="300" x2="340" y2="460" stroke="#ffffff" stroke-width="2" marker-end="url(#arrow)" />
+  <line x1="260" y1="500" x2="140" y2="340" stroke="#ffffff" stroke-width="2" marker-end="url(#arrow)" />
+  <line x1="100" y1="260" x2="260" y2="120" stroke="#ffffff" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- Descriptive Caption -->
+  <text x="300" y="580" text-anchor="middle" fill="#cccccc" font-size="14">Survival Flow: Butterfly → Aerospace AI → Turtle → Drones → Butterfly</text>
+</svg>
