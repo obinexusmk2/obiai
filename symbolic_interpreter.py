@@ -494,7 +494,7 @@ class GestureCodeGenerator:
             },
             "CONFIRM_ACTION": {
                 "hand_config": TokenType.THUMBS_UP,
-                "motion": TokenType.MOVING_UP,
+                "motion": TokenType.STATIC,
                 "duration": 0.5
             },
             "CANCEL_OPERATION": {

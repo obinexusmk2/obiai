@@ -204,16 +204,14 @@ class SymbolicProbe(Generic[D, S]):
         Lower distance = better fixed point candidate
         """
 
-        # Extract feature vectors
-        vec1 = np.concatenate([
-            np.array(data1.landmarks[:3]),  # first 3 landmarks
-            np.array(data1.motion)
-        ]).flatten()
+        # Extract feature vectors - flatten landmarks properly
+        landmarks1 = np.array(data1.landmarks[:3]).flatten()  # First 3 landmarks flattened
+        motion1 = np.array(data1.motion).flatten()
+        vec1 = np.concatenate([landmarks1, motion1])
 
-        vec2 = np.concatenate([
-            np.array(data2.landmarks[:3]),
-            np.array(data2.motion)
-        ]).flatten()
+        landmarks2 = np.array(data2.landmarks[:3]).flatten()
+        motion2 = np.array(data2.motion).flatten()
+        vec2 = np.concatenate([landmarks2, motion2])
 
         # Euclidean distance
         distance = np.linalg.norm(vec1 - vec2)

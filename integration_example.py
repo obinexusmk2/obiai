@@ -8,12 +8,30 @@ Date: 2026-03-07 | OBINexus Constitutional Computing
 from typing import Optional, Dict, Any, Tuple
 from dataclasses import dataclass
 from enum import Enum, auto
-import cv2
 import numpy as np
-import mediapipe as mp
 
 from symbolic_interpreter import SymbolicGestureInterpreter
 from probe_symbolic import SymbolicProbe, GestureData, SymbolicESG
+
+# Try to import optional dependencies for live demo
+try:
+    import cv2
+    HAS_OPENCV = True
+except ImportError:
+    HAS_OPENCV = False
+    print("⚠ OpenCV not installed. Live demo disabled. Use: pip install opencv-python")
+
+try:
+    import mediapipe as mp
+    # Check if solutions module exists
+    if not hasattr(mp, 'solutions'):
+        HAS_MEDIAPIPE = False
+        print("⚠ MediaPipe solutions module not found. Live demo disabled. Use: pip install --upgrade mediapipe")
+    else:
+        HAS_MEDIAPIPE = True
+except (ImportError, AttributeError):
+    HAS_MEDIAPIPE = False
+    print("⚠ MediaPipe not installed or import error. Live demo disabled. Use: pip install mediapipe")
 
 # ============================================================================
 # PET CLASSIFIER (Rocky/Riley)
@@ -53,7 +71,7 @@ RILEY = PetProfile(
     }
 )
 
-PETS = {rocky.name: ROCKY, "Riley": RILEY}
+PETS = {ROCKY.name: ROCKY, RILEY.name: RILEY}
 
 # ============================================================================
 # MMUKO MOTION CLASSIFIER
@@ -110,15 +128,20 @@ class ConstitutionalGestureSystem:
         # Initialize motion classifier
         self.motion_classifier = MMUKOMotionClassifier(threshold=0.5)
 
-        # Initialize MediaPipe hand detection
-        self.mp_hands = mp.solutions.hands
-        self.hands = self.mp_hands.Hands(
-            static_image_mode=False,
-            max_num_hands=1,
-            min_detection_confidence=0.7,
-            min_tracking_confidence=0.5
-        )
-        self.mp_drawing = mp.solutions.drawing_utils
+        # Initialize MediaPipe hand detection (if available)
+        if HAS_MEDIAPIPE:
+            self.mp_hands = mp.solutions.hands
+            self.hands = self.mp_hands.Hands(
+                static_image_mode=False,
+                max_num_hands=1,
+                min_detection_confidence=0.7,
+                min_tracking_confidence=0.5
+            )
+            self.mp_drawing = mp.solutions.drawing_utils
+        else:
+            self.hands = None
+            self.mp_hands = None
+            self.mp_drawing = None
 
         # Command queue
         self.command_queue = []
@@ -169,16 +192,20 @@ class ConstitutionalGestureSystem:
         result["motion_state"] = motion_state.name
 
         # STAGE 2: Hand detection
-        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        hand_results = self.hands.process(rgb)
+        if not self.hands or not HAS_MEDIAPIPE:
+            # Simulate hand detection if MediaPipe unavailable
+            landmarks_list = [(0.5, 0.5, 0.0)] * 21
+        else:
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            hand_results = self.hands.process(rgb)
 
-        if not hand_results.multi_hand_landmarks:
-            result["action"] = "no_hand_detected"
-            return result
+            if not hand_results.multi_hand_landmarks:
+                result["action"] = "no_hand_detected"
+                return result
 
-        # Get landmarks
-        landmarks = hand_results.multi_hand_landmarks[0].landmark
-        landmarks_list = [(lm.x, lm.y, lm.z) for lm in landmarks]
+            # Get landmarks
+            landmarks = hand_results.multi_hand_landmarks[0].landmark
+            landmarks_list = [(lm.x, lm.y, lm.z) for lm in landmarks]
 
         # STAGE 3: Symbolic interpretation (P(ext): D -> S)
         gesture_data = GestureData(
@@ -276,6 +303,78 @@ class ConstitutionalGestureSystem:
         }
 
 # ============================================================================
+# SIMULATION MODE (Without Camera/OpenCV)
+# ============================================================================
+
+def run_simulation(system: ConstitutionalGestureSystem):
+    """
+    Run gesture classification in simulation mode (no camera needed)
+    """
+
+    # Predefined gesture sequences for testing
+    test_gestures = [
+        {
+            "name": "OK_SIGN",
+            "landmarks": [(0.5, 0.5)] * 21,
+            "motion": (-0.71, 0.34),  # Moving toward
+            "pet": "Rocky"
+        },
+        {
+            "name": "FIST",
+            "landmarks": [(0.5, 0.5)] * 21,
+            "motion": (0.0, 0.0),  # Static
+            "pet": "Rocky"
+        },
+        {
+            "name": "OPEN_PALM",
+            "landmarks": [(0.5, 0.5)] * 21,
+            "motion": (0.0, 0.0),
+            "pet": "Riley"
+        },
+        {
+            "name": "POINTING",
+            "landmarks": [(0.5, 0.5)] * 21,
+            "motion": (-0.7, 0.2),  # Moving toward
+            "pet": "Riley"
+        },
+        {
+            "name": "THUMBS_UP",
+            "landmarks": [(0.5, 0.5)] * 21,
+            "motion": (0.0, 0.0),
+            "pet": "Rocky"
+        },
+    ]
+
+    print("Testing gesture sequences:\n")
+
+    for i, gesture in enumerate(test_gestures, 1):
+        print(f"[{i}] Simulating: {gesture['name']}")
+
+        # Create simulated frame
+        frame = np.ones((480, 640, 3), dtype=np.uint8) * 128
+
+        # Process gesture
+        result = system.process_frame(frame, gesture["motion"], target_pet=gesture["pet"])
+
+        # Execute command
+        executed = system.execute_command(result)
+
+        # Print result
+        print(f"    Gesture: {result['gesture']}")
+        print(f"    Confidence: {result['gesture_confidence']:.2f}")
+        print(f"    Channel: {result['channel']}")
+        print(f"    Pet: {result['target_pet']}")
+        print(f"    Command: {result['command']}")
+        print(f"    Status: {'✓ EXECUTED' if executed else '⚠ DEFERRED'}")
+        print()
+
+    print("=" * 70)
+    print("Simulation Complete")
+    print("=" * 70)
+    print(f"\nTo use live camera demo, install dependencies:")
+    print("  pip install opencv-python mediapipe")
+
+# ============================================================================
 # LIVE DEMO
 # ============================================================================
 
@@ -284,7 +383,27 @@ def main():
 
     system = ConstitutionalGestureSystem()
 
+    # Check if OpenCV is available
+    if not HAS_OPENCV:
+        print("\n" + "=" * 70)
+        print("Constitutional Gesture System - Simulation Mode")
+        print("=" * 70)
+        print("\n⚠ OpenCV not installed. Running in simulation mode.")
+        print("Install with: pip install opencv-python mediapipe")
+        print("\nSimulating gesture sequence...\n")
+
+        # Run simulation without camera
+        run_simulation(system)
+        return
+
     cap = cv2.VideoCapture(0)
+
+    # Check if camera opened successfully
+    if not cap.isOpened():
+        print("\n⚠ Camera not available. Running in simulation mode.")
+        print("To test with live camera: ensure camera is connected and accessible\n")
+        run_simulation(system)
+        return
 
     print("\n" + "=" * 70)
     print("Constitutional Gesture System - Live Demo")
@@ -356,13 +475,23 @@ def main():
         cv2.putText(frame_display, f"Command: {result['command']}", (30, 250),
                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
 
-        cv2.imshow("Constitutional Gesture System", frame_display)
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+        try:
+            cv2.imshow("Constitutional Gesture System", frame_display)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+        except cv2.error:
+            # GUI not available, just process without display
+            print(f"[Frame {frame_count}] {result['gesture']} - {result['channel']}")
+            if frame_count >= 10:  # Stop after 10 frames in headless mode
+                break
 
     cap.release()
-    cv2.destroyAllWindows()
+
+    if HAS_OPENCV:
+        try:
+            cv2.destroyAllWindows()
+        except cv2.error:
+            pass  # GUI not available
 
     # Print summary
     print("\n" + "=" * 70)
